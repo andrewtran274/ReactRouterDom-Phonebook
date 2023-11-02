@@ -5,12 +5,17 @@ import {
   useLoaderData,
   NavLink,
   useNavigation,
+  useSubmit,
 } from "react-router-dom";
 import { getContacts, createContact } from "../contacts";
+import { useEffect } from "react";
 
-export async function loader() {
-  const contacts = await getContacts();
-  return { contacts };
+export async function loader({ request }) {
+  const url = new URL(request.url);
+  const q = url.searchParams.get("q");
+  const contacts = await getContacts(q);
+
+  return { contacts, q };
 }
 export async function action() {
   const contact = await createContact();
@@ -18,8 +23,16 @@ export async function action() {
 }
 
 export default function Root() {
-  const { contacts } = useLoaderData();
+  const { contacts, q } = useLoaderData();
   const navigation = useNavigation();
+  const submit = useSubmit();
+  useEffect(() => {
+    document.getElementById("q").value = q;
+  }, [q]);
+
+  const searching =
+    navigation.location &&
+    new URLSearchParams(navigation.location.search).has("q");
   return (
     <>
       <div id="sidebar">
@@ -32,8 +45,16 @@ export default function Root() {
               placeholder="Search"
               type="search"
               name="q"
+              defaultValue={q}
+              onChange={(event) => {
+                const isFirstSearch = q == null;
+                submit(event.currentTarget.form, {
+                  replace: !isFirstSearch,
+                });
+              }}
+              className={searching ? "loading" : ""}
             />
-            <div id="search-spinner" aria-hidden hidden={true} />
+            <div id="search-spinner" aria-hidden hidden={!searching} />
             <div className="sr-only" aria-live="polite"></div>
           </form>
           <Form method="post">
